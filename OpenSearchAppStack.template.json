@@ -1,0 +1,563 @@
+{
+  "Resources": {
+    "MoviesMoviesDomain94F0963A": {
+      "Type": "AWS::OpenSearchService::Domain",
+      "Properties": {
+        "ClusterConfig": {
+          "InstanceCount": 1,
+          "DedicatedMasterEnabled": false,
+          "InstanceType": "t3.small.search",
+          "ZoneAwarenessEnabled": false
+        },
+        "CognitoOptions": {
+          "Enabled": false
+        },
+        "DomainEndpointOptions": {
+          "EnforceHTTPS": false,
+          "TLSSecurityPolicy": "Policy-Min-TLS-1-0-2019-07"
+        },
+        "DomainName": "movies",
+        "EBSOptions": {
+          "EBSEnabled": true,
+          "VolumeType": "gp2",
+          "VolumeSize": 10
+        },
+        "EncryptionAtRestOptions": {
+          "Enabled": false
+        },
+        "EngineVersion": "OpenSearch_1.0",
+        "LogPublishingOptions": {},
+        "NodeToNodeEncryptionOptions": {
+          "Enabled": false
+        }
+      },
+      "UpdateReplacePolicy": "Retain",
+      "DeletionPolicy": "Retain",
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/MoviesDomain/Resource"
+      }
+    },
+    "MoviesOpenSearchHandlerServiceRole4A902E7E": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+              ]
+            ]
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/OpenSearchHandler/ServiceRole/Resource"
+      }
+    },
+    "MoviesOpenSearchHandlerServiceRoleDefaultPolicy04F8CA54": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "es:ESHttpGet",
+                "es:ESHttpHead",
+                "es:ESHttpDelete",
+                "es:ESHttpPost",
+                "es:ESHttpPut",
+                "es:ESHttpPatch"
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "MoviesMoviesDomain94F0963A",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "MoviesMoviesDomain94F0963A",
+                          "Arn"
+                        ]
+                      },
+                      "/*"
+                    ]
+                  ]
+                }
+              ]
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "PolicyName": "MoviesOpenSearchHandlerServiceRoleDefaultPolicy04F8CA54",
+        "Roles": [
+          {
+            "Ref": "MoviesOpenSearchHandlerServiceRole4A902E7E"
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/OpenSearchHandler/ServiceRole/DefaultPolicy/Resource"
+      }
+    },
+    "MoviesOpenSearchHandler67359B88": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "AssetParameters22037ea19a0aa1681035f889d0f567a41fed742f0ef483726fabc2e6cd8ebc53S3BucketB138AF1E"
+          },
+          "S3Key": {
+            "Fn::Join": [
+              "",
+              [
+                {
+                  "Fn::Select": [
+                    0,
+                    {
+                      "Fn::Split": [
+                        "||",
+                        {
+                          "Ref": "AssetParameters22037ea19a0aa1681035f889d0f567a41fed742f0ef483726fabc2e6cd8ebc53S3VersionKeyA96EAE9E"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "Fn::Select": [
+                    1,
+                    {
+                      "Fn::Split": [
+                        "||",
+                        {
+                          "Ref": "AssetParameters22037ea19a0aa1681035f889d0f567a41fed742f0ef483726fabc2e6cd8ebc53S3VersionKeyA96EAE9E"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "MoviesOpenSearchHandlerServiceRole4A902E7E",
+            "Arn"
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "ENDPOINT": {
+              "Fn::GetAtt": [
+                "MoviesMoviesDomain94F0963A",
+                "DomainEndpoint"
+              ]
+            },
+            "REGION": "us-east-2"
+          }
+        },
+        "Handler": "search.main",
+        "Runtime": "python3.9"
+      },
+      "DependsOn": [
+        "MoviesOpenSearchHandlerServiceRoleDefaultPolicy04F8CA54",
+        "MoviesOpenSearchHandlerServiceRole4A902E7E"
+      ],
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/OpenSearchHandler/Resource",
+        "aws:asset:path": "asset.22037ea19a0aa1681035f889d0f567a41fed742f0ef483726fabc2e6cd8ebc53",
+        "aws:asset:property": "Code"
+      }
+    },
+    "MoviesMoviesOpenSearchAPI7FE39A5F": {
+      "Type": "AWS::ApiGateway::RestApi",
+      "Properties": {
+        "Description": "Movie search service.",
+        "Name": "Open Search Movie Service"
+      },
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/MoviesOpenSearch-API/Resource"
+      }
+    },
+    "MoviesMoviesOpenSearchAPICloudWatchRole31F2FD06": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "apigateway.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+              ]
+            ]
+          }
+        ]
+      },
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/MoviesOpenSearch-API/CloudWatchRole/Resource"
+      }
+    },
+    "MoviesMoviesOpenSearchAPIAccount7467A67E": {
+      "Type": "AWS::ApiGateway::Account",
+      "Properties": {
+        "CloudWatchRoleArn": {
+          "Fn::GetAtt": [
+            "MoviesMoviesOpenSearchAPICloudWatchRole31F2FD06",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "MoviesMoviesOpenSearchAPI7FE39A5F"
+      ],
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/MoviesOpenSearch-API/Account"
+      }
+    },
+    "MoviesMoviesOpenSearchAPIDeployment64E2C91Eccb34278fcde8669bd4bd960f7a95871": {
+      "Type": "AWS::ApiGateway::Deployment",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "MoviesMoviesOpenSearchAPI7FE39A5F"
+        },
+        "Description": "Automatically created by the RestApi construct"
+      },
+      "DependsOn": [
+        "MoviesMoviesOpenSearchAPIGET8B5A4F37",
+        "MoviesMoviesOpenSearchAPIPOST3E145DA5"
+      ],
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/MoviesOpenSearch-API/Deployment/Resource"
+      }
+    },
+    "MoviesMoviesOpenSearchAPIDeploymentStageprod1BA4D43C": {
+      "Type": "AWS::ApiGateway::Stage",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "MoviesMoviesOpenSearchAPI7FE39A5F"
+        },
+        "DeploymentId": {
+          "Ref": "MoviesMoviesOpenSearchAPIDeployment64E2C91Eccb34278fcde8669bd4bd960f7a95871"
+        },
+        "StageName": "prod"
+      },
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/MoviesOpenSearch-API/DeploymentStage.prod/Resource"
+      }
+    },
+    "MoviesMoviesOpenSearchAPIGETApiPermissionOpenSearchAppStackMoviesMoviesOpenSearchAPI7CAD96DAGET32CFCD23": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "MoviesOpenSearchHandler67359B88",
+            "Arn"
+          ]
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:us-east-2:876627922186:",
+              {
+                "Ref": "MoviesMoviesOpenSearchAPI7FE39A5F"
+              },
+              "/",
+              {
+                "Ref": "MoviesMoviesOpenSearchAPIDeploymentStageprod1BA4D43C"
+              },
+              "/GET/"
+            ]
+          ]
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/MoviesOpenSearch-API/Default/GET/ApiPermission.OpenSearchAppStackMoviesMoviesOpenSearchAPI7CAD96DA.GET.."
+      }
+    },
+    "MoviesMoviesOpenSearchAPIGETApiPermissionTestOpenSearchAppStackMoviesMoviesOpenSearchAPI7CAD96DAGETA1D7D791": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "MoviesOpenSearchHandler67359B88",
+            "Arn"
+          ]
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:us-east-2:876627922186:",
+              {
+                "Ref": "MoviesMoviesOpenSearchAPI7FE39A5F"
+              },
+              "/test-invoke-stage/GET/"
+            ]
+          ]
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/MoviesOpenSearch-API/Default/GET/ApiPermission.Test.OpenSearchAppStackMoviesMoviesOpenSearchAPI7CAD96DA.GET.."
+      }
+    },
+    "MoviesMoviesOpenSearchAPIGET8B5A4F37": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "HttpMethod": "GET",
+        "ResourceId": {
+          "Fn::GetAtt": [
+            "MoviesMoviesOpenSearchAPI7FE39A5F",
+            "RootResourceId"
+          ]
+        },
+        "RestApiId": {
+          "Ref": "MoviesMoviesOpenSearchAPI7FE39A5F"
+        },
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "RequestTemplates": {
+            "application/json": "{ \"statusCode\": \"200\" }"
+          },
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":apigateway:us-east-2:lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "MoviesOpenSearchHandler67359B88",
+                    "Arn"
+                  ]
+                },
+                "/invocations"
+              ]
+            ]
+          }
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/MoviesOpenSearch-API/Default/GET/Resource"
+      }
+    },
+    "MoviesMoviesOpenSearchAPIPOSTApiPermissionOpenSearchAppStackMoviesMoviesOpenSearchAPI7CAD96DAPOST4F90AEE7": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "MoviesOpenSearchHandler67359B88",
+            "Arn"
+          ]
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:us-east-2:876627922186:",
+              {
+                "Ref": "MoviesMoviesOpenSearchAPI7FE39A5F"
+              },
+              "/",
+              {
+                "Ref": "MoviesMoviesOpenSearchAPIDeploymentStageprod1BA4D43C"
+              },
+              "/POST/"
+            ]
+          ]
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/MoviesOpenSearch-API/Default/POST/ApiPermission.OpenSearchAppStackMoviesMoviesOpenSearchAPI7CAD96DA.POST.."
+      }
+    },
+    "MoviesMoviesOpenSearchAPIPOSTApiPermissionTestOpenSearchAppStackMoviesMoviesOpenSearchAPI7CAD96DAPOST88E3EA39": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "MoviesOpenSearchHandler67359B88",
+            "Arn"
+          ]
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:us-east-2:876627922186:",
+              {
+                "Ref": "MoviesMoviesOpenSearchAPI7FE39A5F"
+              },
+              "/test-invoke-stage/POST/"
+            ]
+          ]
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/MoviesOpenSearch-API/Default/POST/ApiPermission.Test.OpenSearchAppStackMoviesMoviesOpenSearchAPI7CAD96DA.POST.."
+      }
+    },
+    "MoviesMoviesOpenSearchAPIPOST3E145DA5": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "HttpMethod": "POST",
+        "ResourceId": {
+          "Fn::GetAtt": [
+            "MoviesMoviesOpenSearchAPI7FE39A5F",
+            "RootResourceId"
+          ]
+        },
+        "RestApiId": {
+          "Ref": "MoviesMoviesOpenSearchAPI7FE39A5F"
+        },
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "RequestTemplates": {
+            "application/json": "{ \"statusCode\": \"200\" }"
+          },
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":apigateway:us-east-2:lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "MoviesOpenSearchHandler67359B88",
+                    "Arn"
+                  ]
+                },
+                "/invocations"
+              ]
+            ]
+          }
+        }
+      },
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/Movies/MoviesOpenSearch-API/Default/POST/Resource"
+      }
+    },
+    "CDKMetadata": {
+      "Type": "AWS::CDK::Metadata",
+      "Properties": {
+        "Analytics": "v2:deflate64:H4sIAAAAAAAA/02QT0/DMAzFPwv3NG3ZGYlugxtjGoi7ycwW1vxR7Gyaqnx3kpRJUw7+vTh6eXYv+0Unu4dnuFCj9qd2Ui6gnD4Y1EmsnCUOUbEYiJDz5UHbg1j92PfIPnKhLQQwyBiK2CG5GBQmUfwm59ESQlBHwnDWKhuvnQFty9uZkhjBfO9BTq/RKtau9u55i8FooqyS0GDktHMj1s9K3bpRq2t9VykJWjRQ0pKsobOWy6hOyEsgFOD1ARgvcM1GSDx4/R/8hoNSLloWa/Sjuxq0dcw7VdZQA8xwm7navyEf3b40Z0opibXjDXK7kL187Fq5eflc5R0P3jdfGMpcT+fca3vZlfPwS1o3ISfQBuVurn85/XUypwEAAA=="
+      },
+      "Metadata": {
+        "aws:cdk:path": "OpenSearchAppStack/CDKMetadata/Default"
+      }
+    }
+  },
+  "Outputs": {
+    "MoviesMoviesOpenSearchAPIEndpointD9380B14": {
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "MoviesMoviesOpenSearchAPI7FE39A5F"
+            },
+            ".execute-api.us-east-2.",
+            {
+              "Ref": "AWS::URLSuffix"
+            },
+            "/",
+            {
+              "Ref": "MoviesMoviesOpenSearchAPIDeploymentStageprod1BA4D43C"
+            },
+            "/"
+          ]
+        ]
+      }
+    }
+  },
+  "Parameters": {
+    "AssetParameters22037ea19a0aa1681035f889d0f567a41fed742f0ef483726fabc2e6cd8ebc53S3BucketB138AF1E": {
+      "Type": "String",
+      "Description": "S3 bucket for asset \"22037ea19a0aa1681035f889d0f567a41fed742f0ef483726fabc2e6cd8ebc53\""
+    },
+    "AssetParameters22037ea19a0aa1681035f889d0f567a41fed742f0ef483726fabc2e6cd8ebc53S3VersionKeyA96EAE9E": {
+      "Type": "String",
+      "Description": "S3 key for asset version \"22037ea19a0aa1681035f889d0f567a41fed742f0ef483726fabc2e6cd8ebc53\""
+    },
+    "AssetParameters22037ea19a0aa1681035f889d0f567a41fed742f0ef483726fabc2e6cd8ebc53ArtifactHash0988A220": {
+      "Type": "String",
+      "Description": "Artifact hash for asset \"22037ea19a0aa1681035f889d0f567a41fed742f0ef483726fabc2e6cd8ebc53\""
+    }
+  }
+}
